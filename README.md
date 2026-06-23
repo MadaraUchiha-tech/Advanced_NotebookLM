@@ -1,40 +1,47 @@
-# NotebookLM RAG
+# Advanced NotebookLM RAG
 
-A RAG-powered application where a user can upload any document (PDF or plain text) and have a conversation with it. The system processes the file, stores it intelligently, and answers natural language questions grounded in the document's actual content.
+A production-grade, advanced Retrieval-Augmented Generation (RAG) application. Users can upload any document (PDF or plain text) and have an intelligent conversation with it. Unlike a naive RAG system, this application implements cutting-edge techniques to maximize retrieval accuracy, prevent hallucinations, and evaluate its own answers.
 
-## Live Project
+## Advanced Architecture & Features
 
-Deployed and accessible without any local setup.
+This project moves beyond standard semantic search by implementing a sophisticated multi-stage pipeline:
 
-## Features
+### 1. Query Rewriting & Translation
+User queries are often ambiguous or lack context. The system uses an LLM to translate and rewrite raw user queries into clearer, highly optimized queries tailored for vector database retrieval.
 
-- Upload PDF or plain text documents
-- Automatic chunking, embedding, and indexing into a vector database
-- Ask natural language questions about the document
-- Answers grounded in the document -- not from the LLM's general knowledge
-- Clean web UI for uploading and chatting
+### 2. Sub-Query Decomposition
+Complex questions that require synthesizing multiple pieces of information are broken down into simpler, parallel sub-queries. The system retrieves documents for each sub-query independently and then merges and deduplicates the results.
 
-## RAG Pipeline
+### 3. HyDE (Hypothetical Document Embeddings)
+Instead of embedding the user's raw query to find similar vectors, the system first generates a *hypothetical document* (an educated guess at the answer). It then embeds this hypothetical document to perform the similarity search, significantly improving retrieval accuracy by searching in the document answer space.
 
-The full pipeline is implemented end-to-end:
+### 4. Cross-Encoder Re-Ranking
+Standard vector similarity search can retrieve context that is topically similar but practically irrelevant. The system employs an LLM-based Cross-Encoder re-ranker to score and filter retrieved chunks strictly based on their direct relevance to the actual query.
 
-1. **Ingestion** -- Accepts PDF and text files via file upload
-2. **Chunking** -- Recursive Character Text Splitter
-3. **Embedding** -- OpenAI `text-embedding-3-large`
-4. **Storage** -- Qdrant vector database
-5. **Retrieval** -- Similarity search to find top-k relevant chunks
-6. **Generation** -- GitHub Models `gpt-4o-mini` with a strict system prompt that only uses retrieved context
+### 5. Corrective RAG
+If all retrieved chunks fall below a strict relevance threshold during the re-ranking phase, the system triggers a Corrective RAG pattern. It refuses to answer and informs the user that the document doesn't contain the requested information, effectively neutralizing out-of-context hallucinations.
 
-## Chunking Strategy
+### 6. Token & Context Window Management
+Assembled contexts are rigorously monitored using a Token Manager to ensure they do not exceed the LLM's context window budget. The system safely truncates excess context and always prioritizes the highest-scoring chunks from the re-ranker to maximize prompt value.
 
-**Recursive Character Text Splitter**
+### 7. LLM-as-a-Judge & Self-Correction
+Before returning the final answer, an independent LLM judge evaluates the response across four specific metrics:
+- **Faithfulness**: Is the answer grounded purely in the retrieved context?
+- **Relevance**: Does it directly answer the user's original query?
+- **Completeness**: Is the answer comprehensive?
+- **Coherence**: Is the text well-structured and logical?
 
-This strategy recursively splits text by characters, starting with larger separators (like double newlines for paragraphs) and moving to smaller ones (like single newlines for sentences, then spaces for words). It preserves semantic coherence better than fixed-size chunking alone.
+If the generated answer fails the evaluation threshold, the system feeds the judge's exact feedback back into the generation model and retries automatically to correct itself.
 
-| Parameter | Value |
-|-----------|-------|
-| chunkSize | 1000 characters |
-| chunkOverlap | 200 characters |
+## Pipeline Modes
+
+The application orchestrator dynamically adjusts the pipeline complexity based on the requested mode, allowing users to trade off processing speed for maximum accuracy:
+
+| Mode | Rewrite | SubQuery | HyDE | Rerank | Judge | Top-K | Context Limit |
+|------|---------|----------|------|--------|-------|-------|---------------|
+| **Fast** | ❌ | ❌ | ❌ | Lightweight | ❌ | 3 | 2000 tokens |
+| **Balanced** | ✅ | ❌ | ✅ | LLM-based | ❌ | 5 | 4000 tokens |
+| **Accurate** | ✅ | ✅ | ✅ | LLM-based | ✅ | 10 | 8000 tokens |
 
 ## Tech Stack
 
@@ -42,14 +49,14 @@ This strategy recursively splits text by characters, starting with larger separa
 - React 19 + TypeScript
 - Tailwind CSS
 - LangChain (`@langchain/openai`, `@langchain/qdrant`, `@langchain/textsplitters`)
-- Qdrant vector database
-- GitHub Models / Azure AI Inference API (embeddings + LLM)
+- Qdrant Vector Database
+- GitHub Models / Azure AI Inference API (Embeddings + LLMs)
 
 ## Environment Variables
 
 Copy `env.example` to `.env.local` and fill in your keys:
 
-```
+```bash
 OPENAI_API_KEY=ghp_your_github_token_here
 OPENAI_BASE_URL=https://models.inference.ai.azure.com
 QDRANT_URL=http://localhost:6333
@@ -57,7 +64,7 @@ QDRANT_API_KEY=
 QDRANT_COLLECTION=rag-collection
 ```
 
-**Getting a GitHub token:** Go to [GitHub Settings > Tokens](https://github.com/settings/tokens) and generate a classic token with no special scopes required.
+**Getting a GitHub token:** Go to [GitHub Settings > Tokens](https://github.com/settings/tokens) and generate a classic token. No special scopes are required for GitHub Models.
 
 ## Local Development
 
@@ -70,42 +77,18 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/upload` | POST | Upload and index a document (PDF or text) |
-| `/api/query` | POST | Ask a question about the indexed document |
-
-### Upload
-
+### Upload an Index Document
 ```bash
 curl -X POST http://localhost:3000/api/upload \
   -F "file=@document.pdf"
 ```
 
-Response:
-```json
-{
-  "success": true,
-  "message": "Document \"document.pdf\" indexed successfully with 10 pages.",
-  "collectionName": "...",
-  "pages": 10
-}
-```
-
-### Query
-
+### Query the RAG Pipeline
+You can specify the pipeline mode (`fast`, `balanced`, or `accurate`) in the payload.
 ```bash
 curl -X POST http://localhost:3000/api/query \
   -H "Content-Type: application/json" \
-  -d '{"query": "What is this document about?", "collectionName": "..."}'
+  -d '{"query": "What is this document about?", "collectionName": "...", "mode": "accurate"}'
 ```
 
-Response:
-```json
-{
-  "success": true,
-  "answer": "...",
-  "sources": ["document.pdf (page 3)", "document.pdf (page 5)"]
-}
-```
-# RAG_system
+The response includes the generated answer, the sources, and highly detailed diagnostics of every pipeline stage (time taken, judge scores, token utilization, skipped stages, corrective triggers, etc.).

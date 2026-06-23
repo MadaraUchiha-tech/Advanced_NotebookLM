@@ -356,9 +356,6 @@ export default function Home() {
               <h1 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>
                 Advanced RAG
               </h1>
-              <p className="text-[0.65rem]" style={{ color: "var(--text-muted)" }}>
-                7-Stage Pipeline • Corrective RAG
-              </p>
             </div>
           </div>
         </div>
@@ -399,11 +396,10 @@ export default function Home() {
         {/* Upload Status */}
         {uploadMessage && (
           <div
-            className={`p-3 rounded-lg text-xs mb-4 ${
-              uploadMessage.includes("failed") || uploadMessage.includes("Error")
-                ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-            }`}
+            className={`p-3 rounded-lg text-xs mb-4 ${uploadMessage.includes("failed") || uploadMessage.includes("Error")
+              ? "bg-red-500/10 text-red-400 border border-red-500/20"
+              : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+              }`}
           >
             {uploadMessage}
           </div>
@@ -421,34 +417,6 @@ export default function Home() {
         )}
 
         {/* Pipeline Info */}
-        <div className="mt-auto">
-          <div className="glass-card p-4">
-            <h3 className="text-[0.65rem] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
-              Pipeline Stages
-            </h3>
-            <div className="space-y-1.5">
-              {[
-                { icon: "✎", label: "Query Rewriting" },
-                { icon: "◈", label: "HyDE Generation" },
-                { icon: "⊞", label: "Sub-Query Decomposition" },
-                { icon: "⟐", label: "Multi-Source Retrieval" },
-                { icon: "⇅", label: "Cross-Encoder Reranking" },
-                { icon: "⊡", label: "Token Management" },
-                { icon: "◉", label: "LLM Generation" },
-                { icon: "⚖", label: "Quality Judge" },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="text-xs w-4 text-center" style={{ color: "var(--accent-light)" }}>
-                    {item.icon}
-                  </span>
-                  <span className="text-[0.65rem]" style={{ color: "var(--text-secondary)" }}>
-                    {item.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </aside>
 
       {/* ── Main Chat Area ───────────────────────────────────────── */}
@@ -468,9 +436,7 @@ export default function Home() {
                 Advanced RAG Pipeline
               </h2>
               <p className="text-sm max-w-md leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                Upload a document and ask questions. Your queries pass through a{" "}
-                <span style={{ color: "var(--accent-light)" }}>7-stage pipeline</span>{" "}
-                with query rewriting, HyDE, reranking, and quality evaluation.
+                Upload a document and ask questions.
               </p>
             </div>
           )}
@@ -501,9 +467,8 @@ export default function Home() {
                           >
                             {src.source} (p.{src.page})
                             {src.relevanceScore && (
-                              <span className={`text-[0.6rem] font-semibold ${
-                                src.relevanceScore >= 7 ? "text-emerald-400" : src.relevanceScore >= 5 ? "text-amber-400" : "text-red-400"
-                              }`}>
+                              <span className={`text-[0.6rem] font-semibold ${src.relevanceScore >= 7 ? "text-emerald-400" : src.relevanceScore >= 5 ? "text-amber-400" : "text-red-400"
+                                }`}>
                                 {src.relevanceScore.toFixed(0)}
                               </span>
                             )}
